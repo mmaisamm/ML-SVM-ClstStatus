@@ -1,0 +1,159 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Aug 22 09:29:29 2018
+
+@author: jafrisa
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Aug 20 10:01:38 2018
+
+@author: jafrisa
+"""
+import pandas
+from pandas.plotting import scatter_matrix
+import matplotlib.pyplot as plt
+from sklearn import model_selection
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn import preprocessing
+import numpy as np
+from sklearn.cross_validation import train_test_split
+from sklearn import metrics
+from scipy.stats.stats import pearsonr
+from scipy.stats.stats import spearmanr
+from sklearn.ensemble import VotingClassifier
+import pickle
+from sklearn.decomposition import PCA
+
+Dfile = "no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+Dfile_with_path = "/data/Udpwork/usr/brownas/Hackathon2018/training/no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+
+names = ['Status', 'MutationType', 'Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+# labels for each column
+dataset = pandas.read_csv(Dfile, names=names)
+dataset.to_csv("Fdataset.csv")
+# reads file and assigns column headers
+y = dataset.iloc[:, 0:1]
+X = dataset.iloc[:, [3,5]]
+# splitting data into Target(y) and Features(X)
+y = np.ravel(y)
+# flattens 1D array, reshapes data
+validation_size = .3
+# Denotes training and testing data split: 70% Training and 30% Testing
+seed = 5
+X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=validation_size, random_state=seed)
+# Splits data and sets random state
+
+#dataGnomad = dataset.iloc[:, 4:]
+#scatter_matrix(dataGnomad)
+#plt.show()
+'''
+from matplotlib.backends.backend_pdf import PdfPages
+
+plot1 = sns.violinplot(x="Status", y="PhastconAnno", hue="Status", data=df, palette="Pastel1")
+pp = PdfPages("statusXphastconanno.pdf")
+pp.savefig(plot1)
+plt.close()
+#sns.plt.show()
+#f = plt.figure()
+#f.savefig("statusXphastconanno.pdf", bbox_inches='tight')
+#f.close()
+'''
+'''
+import seaborn as sns
+#df = sns.load_dataset("violin_dataset.csv")
+df = dataset
+sns.violinplot(x="Status", y="GnomadHom", hue="Status", data=df, palette="Pastel1")
+sns.plt.show()
+
+sns.violinplot(x="Status", y="GnomadAC", hue="Status", data=df, palette="Pastel1")
+sns.plt.show()
+'''
+
+#scoring = 'accuracy'
+#models = []
+## list of model(s)
+#models.append(('SVM', SVC(class_weight='balanced')))
+#print "This model is with a balanced (rbf) kernel"
+## add Support Vector Machine to [models] specifically C-Support Vector Classification
+#results = []
+#names = []
+## creates two lists, one for results and one for names
+#for name, model in models:
+#    kfold = model_selection.KFold(n_splits=10, random_state=seed)
+#    cv_results = model_selection.cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
+#    results.append(cv_results)
+#    names.append(name)
+#    msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+#    print(msg)
+
+# for loop creation that runs the model and also prints a message: Name: Mean of Results and Standard Deviation of Results
+svc = SVC(class_weight='balanced')
+# fitting data for future use in computing scores and coefficients
+#y_pred = svc.predict(X_test)
+'''
+print ("Classification Score:" "\n" + str(metrics.classification_report(y_test, y_pred)))
+print ("Matthew's Correlation Coefficient:" + str(metrics.matthews_corrcoef(y_test,y_pred)))
+print ("ROC AUC Score:" + str(metrics.roc_auc_score(y_test,y_pred)))
+print ("Pearson Correlation Coefficient:" + str(pearsonr(y_test, y_pred)))
+print (str(spearmanr(y_test, y_pred)))
+print "Confusion matrix: "
+print(confusion_matrix(y_test, y_pred))
+'''
+# print Classification Score, Matthew's Correlation Coefficient, Receiver Operating Characteristic Area Under Curve, Pearson Correlation Coefficient, and Spearman Rank
+# save model to disk
+#model = SVC(class_weight='balanced')
+#model.fit(X_train, y_train)
+#svcfilename = 'finalizedSVCmodelRBF.pkl'
+#SVC_model_pkl = open(svcfilename, 'wb')
+#pickle.dump(model, SVC_model_pkl)
+#SVC_model_pkl.close()
+
+# saves trained model to a file named 'finalizedSVCmodel.pkl'
+'''
+# load model from disk
+loaded_model = pickle.load(open(filename, 'rb'))
+result = loaded_model.score(X_test, y_test)
+print(result)
+# tests model using saved model
+'''
+
+pca = PCA(n_components=2)
+principalComponents = pca.fit_transform(X)
+principalDf = pandas.DataFrame(data = principalComponents, columns = ['Principal Component 1', 'Principal Component 2'])
+finalDf = pandas.concat([principalDf, dataset[['Status']]], axis = 1)
+
+fig = plt.figure(figsize = (8,8))
+ax = fig.add_subplot(1,1,1)
+ax.set_xlabel('Principal Component 1', fontsize = 15)
+ax.set_ylabel('Principal Component 2', fontsize = 15)
+ax.set_title('2 Component PCA', fontsize = 20)
+targets = [0,1]
+colors = ['r', 'b']
+for target, color in zip(targets,colors):
+    indicesToKeep = finalDf['Status'] == target
+    ax.scatter(finalDf.loc[indicesToKeep, 'Principal Component 1']
+               , finalDf.loc[indicesToKeep, 'Principal Component 2']
+               , c = color
+               , s = 50)
+ax.legend(targets)
+ax.grid()
+
+#svc = SVC(probability=True)
+#probability = svc.predict_proba(y)[:,1]
+
+# ISSUES WITH FITTING
+# ISSUES WITH FITTING
+# ISSUES WITH FITTING
+#svcfilename = 'finalizedSVCmodel.pkl'
+#loaded_model = pickle.load(open(svcfilename, 'rb'))
+#result = loaded_model.score(X_test, y_test)
+#print(result)
+#result.fit(X_test, y_test)
+#print "Confusion matrix: "
+#print(confusion_matrix(y_test, y_pred))
