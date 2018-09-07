@@ -1,0 +1,254 @@
+ #!/usr/local/bin/python
+'''
+# Maisam
+# Started: 8/9/2018 11:30am
+# Hackathon 2018
+# This makes a file to be used for training our model.
+
+# for changing my working dir on windows
+import os
+os.chdir("X:/usr/brownas/Hackathon2018/")
+'''
+#%%
+
+import argparse
+import numpy as np
+
+def parseArguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--vcf", help="Input VCF file", type=str, required=True)
+    parser.add_argument("-p", "--prefix", help="Prefix to be added to output", type=str, required=False)
+    args = parser.parse_args()
+    return args
+
+
+#%%
+def mutationToNumber(mutationType, risk):
+    mut = "NA"
+    severity = "NA"
+
+    lmhlist = ['LOW','MODERATE','HIGH', 'MODIFIER']
+    annolist = ['CHROMOSOME_NUMBER_VARIATION', 'EXON_LOSS_VARIANT','FRAMESHIFT_VARIANT','STOP_GAINED','STOP_LOST','START_LOST','SPLICE_ACCEPTOR_VARIANT','SPLICE_DONOR_VARIANT','RARE_AMINO_ACID_VARIANT','MISSENSE_VARIANT','DISRUPTIVE_INFRAME_INSERTION','CONSERVATIVE_INFRAME_INSERTION','DISRUPTIVE_INFRAME_DELETION','CONSERVATIVE_INFRAME_DELETION','5_PRIME_UTR_TRUNCATION+EXON_LOSS_VARIANT','3_PRIME_UTR_TRUNCATION+EXON_LOSS','SPLICE_BRANCH_VARIANT','SPLICE_REGION_VARIANT','STOP_RETAINED_VARIANT','INITIATOR_CODON_VARIANT','SYNONYMOUS_VARIANT','INITIATOR_CODON_VARIANT+NON_CANONICAL_START_CODON','STOP_RETAINED_VARIANT','CODING_SEQUENCE_VARIANT','5_PRIME_UTR_VARIANT','3_PRIME_UTR_VARIANT','5_PRIME_UTR_PREMATURE_START_CODON_GAIN_VARIANT','UPSTREAM_GENE_VARIANT','DOWNSTREAM_GENE_VARIANT','TF_BINDING_SITE','REGULATORY_REGION_VARIANT','MIRNA','CUSTOM','SEQUENCE_FEATURE','CONSERVED_INTRON_VARIANT','INTRON_VARIANT','INTRAGENIC_VARIANT','CONSERVED_INTRAGENIC_VARIANT','INTERGENIC_REGION','CODING_SEQUENCE_VARIANT','NON_CODING_EXON_VARIANT','NC_TRANSCIPT_VARIANT','GENE_VARIANT','CHROMOSOME','NON_SYNONYMOUS_CODING','SYNONYMOUS_CODING','FRAME_SHIFT','UTR_3_PRIME','STOP_GAINED','UPSTREAM','SPLICE_SITE_REGION+INTRON','INTRON','PROTEIN_STRUCTURAL_INTERACTION_LOCUS','DOWNSTREAM','SPLICE_SITE_DONOR+INTRON','UTR_5_PRIME','SPLICE_SITE_ACCEPTOR+INTRON','NON_SYNONYMOUS_CODING+SPLICE_SITE_REGION','SPLICE_SITE_REGION+SYNONYMOUS_CODING','CODON_CHANGE_PLUS_CODON_DELETION','FRAME_SHIFT+NON_SYNONYMOUS_CODING','FRAME_SHIFT+SPLICE_SITE_REGION','FRAME_SHIFT+STOP_GAINED','STOP_GAINED+SPLICE_SITE_REGION','CODON_DELETION','PROTEIN_PROTEIN_INTERACTION_LOCUS','CODON_CHANGE_PLUS_CODON_INSERTION','SPLICE_SITE_REGION','NEXT_PROT[modified-residue:phosphoserine]','CODON_INSERTION']
+
+    if mutationType in annolist:
+                mut =  str(annolist.index(mutationType))
+                severity = str(lmhlist.index(risk))
+
+    return mut, severity
+
+#%%
+def getScores(line):
+    '''
+    What if I use this function to get the scores, and test if they are all NOT NA
+    then send the scores to the prediction function. That function returns whatever value I want appended to
+    the vcf line
+    '''
+    scores = []
+    mutationType = "NA"
+    risk = "NA"
+#    grantham = "0"
+    phastConMean = "NA"
+    gnomadHom = "NA"
+    gnomAD_AC = "NA"
+#    status = "NA"
+    mut = "NA"
+    severity = "NA"
+
+    annos, names = infoSplitter(line)
+    for index, name in enumerate(names):
+        if name == 'EFF':
+            longAnno = annos[index]
+            smallerAnno = longAnno.split("(")
+            mutationType = smallerAnno[0]
+            smallestAnno = smallerAnno[1].split("|")
+            risk = smallestAnno[0]
+            mut, severity = mutationToNumber(mutationType, risk) # change to number code
+#        if name == 'grantham':
+#            grantham = annos[index]
+        if name == 'phastCons':
+            phastCon = annos[index]
+            phastConFloat = [float(i) for i in phastCon.split(',')]
+            phastConMean = np.mean(phastConFloat)
+        if name == 'gnomAD_Hom':
+            gnomadHom = annos[index]
+        if name == 'gnomAD_AC':
+            gnomAD_AC = annos[index]
+
+
+    scores = [str(severity), str(phastConMean), str(gnomadHom), str(gnomAD_AC)]
+    # if statement to check if all values of scores are NOT NA
+
+    if "NA" not in scores:
+        scores = [int(severity), float(phastConMean), int(gnomadHom), int(gnomAD_AC)]
+        return scores
+    else:
+        # return nothing...
+        return None
+# Needs to return 2 things
+#%%
+def makeOutput(prefix, testingDat, header):
+    # Write files
+    ## I want to change the filename here to copy the input vcf plus a prefix.
+    print "writing file"
+    filenames = ['_ANNOTATED_ClstStatus.vcf']
+    fullpath = "/data/Udpwork/usr/brownas/Hackathon2018/results/"
+
+
+    for index, name in enumerate(filenames):
+        name_w_pre = fullpath + prefix.strip() + name
+        with open(name_w_pre, "w") as currentF:
+            if index == 0:
+                currentF.write(''.join(header)) # I think this should NOT have a newline added
+    #                initial = map(','.join, testingDat)
+    #                currentF.write('\n'.join(initial) + '\n')
+                currentF.write('\n'.join(testingDat) + '\n')
+                print "Wrote: " + str(name_w_pre)
+
+    print "Created output file."
+    print "Output was saved in " + fullpath
+    return
+#%%
+def infoSplitter(vcfLine):
+    # Unique diseases
+    name = []
+    anno = []
+
+    info = vcfLine.split('\t')[7]
+    annotations = info.split(';')
+    for annotation in annotations:
+        if '=' in annotation:
+            each = annotation.split('=')
+            cleanName = each[0]
+            cleanName = cleanName.strip()
+            name.append(cleanName)
+            cleanAnno = each[1]
+            cleanAnno = cleanAnno.strip()
+            anno.append(cleanAnno)
+
+    return anno, name
+
+#%%
+def readVCF(vcf):
+    # Read VCF
+#    import pandas
+#    from sklearn import model_selection
+    import numpy as np
+    import pickle
+
+    prediction = ''
+    scores = ''
+    filename = '/data/Udpwork/usr/jafrisa/Hackathon2018/finalizedSVCmodelRBF.pkl'
+    print "reading vcf"
+    testingDat = []
+    header = []
+    annotatedLine = ''
+
+    '''
+    I need to have the testingDat thing in a separate line,
+    I need my loop to return scores to this loop. I'm cutting out the whole
+    predict classifications function.
+    '''
+
+
+    with open(vcf, 'r') as curVCF:
+        lines = curVCF.readlines()
+
+    f = open(filename, 'rb')
+    svc = pickle.load(f)
+
+    for line in lines:
+        if line[0] != '#':
+            scores = getScores(line)
+            if scores != None:
+                scoresToPredictOn = np.asarray(scores).reshape(1, -1)
+                prediction = svc.predict(scoresToPredictOn)
+                if prediction == 0:
+                   annotatedLine = line.strip() + ";ClstStatus=Benign"
+                if prediction == 1:
+                   annotatedLine = line.strip() + ";ClstStatus=Pathogenic"
+                testingDat.append(annotatedLine)
+        else:
+            header.append(line)
+
+    f.close()
+    print "finished reading vcf"
+#    print testingDat
+
+    return testingDat, header
+#%%
+'''
+def predictClassification(scores):
+    import pandas
+    from sklearn import model_selection
+    import numpy as np
+    import pickle
+
+    prediction = ''
+#    Dfile = "no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+#    Dfile_with_path = "/data/Udpwork/usr/brownas/Hackathon2018/training/no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+#
+#    names = ['Status', 'MutationType', 'Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+#    # labels for each column
+#    dataset = pandas.read_csv(Dfile, names=names)
+#    dataset.to_csv("Fdataset.csv")
+#    y = dataset.iloc[:, 0:1]
+#    X = dataset.iloc[:, 2:]
+#    # splitting data into Target(y) and Features(X)
+#    y = np.ravel(y)
+#    # flattens 1D array, reshapes data
+#    validation_size = .3
+#    # Denotes training and testing data split: 70% Training and 30% Testing
+#    seed = 5
+#    X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=validation_size, random_state=seed)
+
+
+    # Splits data and sets random state
+    # Need full path
+    filename = '/data/Udpwork/usr/jafrisa/Hackathon2018/finalizedSVCmodelRBF.pkl'
+#    filename = "X:/usr/jafrisa/Hackathon2018/finalizedSVCmodelRBF.pkl"
+#    loaded_model = pickle.load(open(filename, 'rb'))
+    #result = loaded_model.score(X_test, y_test)
+    f = open(filename, 'rb')
+    svc = pickle.load(f)
+    #print(result)
+#    Efile = "all_prediction.csv"
+#    namess = ['Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+    # labels for each column
+#    dataset2 = pandas.read_csv(Efile, names=namess)
+#    Xnew = dataset2.iloc[:, :]
+#    print ('done2')
+    scoresToPredictOn = np.asarray(scores).reshape(1, -1)
+    prediction = svc.predict(scoresToPredictOn)
+#    print str(scoresToPredictOn) + " prediction=" + str(prediction)
+#    # predicts Benign or Pathogenic
+#    ynew = svc.predict(Xnew)
+#    for i in range(len(Xnew)):
+#        print("X=%s, Predicted=%s" % (Xnew.iloc[i], ynew[i]))
+
+    f.close()
+
+    return prediction
+'''
+#%%
+def main(args):
+    '''
+    # for changing my working dir on windows
+    import os
+    os.chdir("X:/usr/brownas/Hackathon2018/")
+    inFile = "annotated_snpEff_vcfanno_HGMD_PRO_2017.4_hg19.vcf"
+    '''
+    inFile = args.vcf
+    prefix = args.prefix
+#    prefix = "ML"
+
+    print "Input file: " + str(inFile)
+    print "Prefix: " + str(prefix)
+
+
+    testingDat, header = readVCF(inFile)
+    makeOutput(prefix, testingDat, header)
+
+
+if __name__ == '__main__':
+    arguments = parseArguments()
+    main(arguments)
