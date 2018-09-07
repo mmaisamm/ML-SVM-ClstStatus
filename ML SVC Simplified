@@ -1,0 +1,94 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Aug 22 09:29:29 2018
+
+@author: jafrisa
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Aug 20 10:01:38 2018
+
+@author: jafrisa
+"""
+import pandas
+from sklearn import model_selection
+from sklearn.metrics import confusion_matrix
+from sklearn.svm import SVC
+import numpy as np
+from sklearn import metrics
+from scipy.stats.stats import pearsonr
+from scipy.stats.stats import spearmanr
+import pickle
+
+Dfile = "no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+Dfile_with_path = "/data/Udpwork/usr/brownas/Hackathon2018/training/no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+
+names = ['Status', 'MutationType', 'Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+# labels for each column
+dataset = pandas.read_csv(Dfile_with_path, names=names)
+#dataset.to_csv("Fdataset.csv")
+# reads file and assigns column headers
+y = dataset.iloc[:, 0:1]
+X = dataset.iloc[:, 2:]
+# splitting data into Target(y) and Features(X)
+y = np.ravel(y)
+# flattens 1D array, reshapes data
+validation_size = .3
+# Denotes training and testing data split: 70% Training and 30% Testing
+seed = 5
+X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=validation_size, random_state=seed)
+# Splits data and sets random state
+
+scoring = 'accuracy'
+models = []
+# list of model(s)
+models.append(('SVM_rbf', SVC()))
+print "This model is with default (rbf) kernel"
+# add Support Vector Machine to [models] specifically C-Support Vector Classification
+results = []
+names = []
+# creates two lists, one for results and one for names
+for name, model in models:
+    kfold = model_selection.KFold(n_splits=10, random_state=seed)
+    cv_results = model_selection.cross_val_score(model, X_train, y_train, cv=kfold, scoring=scoring)
+    results.append(cv_results)
+    names.append(name)
+    msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+    print(msg)
+
+
+# for loop creation that runs the model and also prints a message: Name: Mean of Results and Standard Deviation of Results
+svc = SVC(class_weight='balanced')
+svc.fit(X_train, y_train)
+# fitting data for future use in computing scores and coefficients
+y_pred = svc.predict(X_test)
+
+Dfile = "all_predictions.csv"
+Dfile_with_path = "/data/Udpwork/usr/brownas/Hackathon2018/training/all_predictions.csv"
+
+names = ['Status', 'MutationType', 'Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+# labels for each column
+testset = pandas.read_csv(Dfile_with_path, names=names)
+#dataset.to_csv("Fdataset.csv")
+# reads file and assigns column headers
+Xnew = testset.iloc[:, 2:]
+
+print ("Classification Score:" "\n" + str(metrics.classification_report(y_test, y_pred)))
+print ("Matthew's Correlation Coefficient:" + str(metrics.matthews_corrcoef(y_test,y_pred)))
+print ("ROC AUC Score:" + str(metrics.roc_auc_score(y_test,y_pred)))
+print ("Pearson Correlation Coefficient:" + str(pearsonr(y_test, y_pred)))
+print (str(spearmanr(y_test, y_pred)))
+print "Confusion matrix: "
+print(confusion_matrix(y_test, y_pred))
+# print Classification Score, Matthew's Correlation Coefficient, Receiver Operating Characteristic Area Under Curve, Pearson Correlation Coefficient, and Spearman Rank
+
+# save model to disk
+svcfilename = 'finalizedSVCmodelRBF.pkl'
+SVC_model_pkl = open(svcfilename, 'wb')
+pickle.dump(SVC(), SVC_model_pkl)
+SVC_model_pkl.close()
+# saves trained model to a file named 'finalizedSVCmodel.pkl'
+
+
+
