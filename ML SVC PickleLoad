@@ -1,0 +1,70 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 24 09:45:37 2018
+
+@author: jafrisa
+"""
+
+import pandas
+from pandas.plotting import scatter_matrix
+import matplotlib.pyplot as plt
+from sklearn import model_selection
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn import preprocessing
+import numpy as np
+from sklearn.cross_validation import train_test_split
+from sklearn import metrics
+from scipy.stats.stats import pearsonr
+from scipy.stats.stats import spearmanr
+from sklearn.ensemble import VotingClassifier
+import pickle
+from sklearn.decomposition import PCA
+Dfile = "no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+Dfile_with_path = "/data/Udpwork/usr/brownas/Hackathon2018/training/no_NA_gnomad_no_granth_all_mutations_ML_instance_3.csv"
+
+names = ['Status', 'MutationType', 'Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+# labels for each column
+dataset = pandas.read_csv(Dfile, names=names)
+dataset.to_csv("Fdataset.csv")
+y = dataset.iloc[:, 0:1]
+X = dataset.iloc[:, 2:]
+# splitting data into Target(y) and Features(X)
+y = np.ravel(y)
+# flattens 1D array, reshapes data
+validation_size = .3
+# Denotes training and testing data split: 70% Training and 30% Testing
+seed = 5
+X_train, X_test, y_train, y_test = model_selection.train_test_split(X, y, test_size=validation_size, random_state=seed)
+
+
+# Splits data and sets random state
+filename = 'finalizedSVCmodelRBF.pkl'
+loaded_model = pickle.load(open(filename, 'rb'))
+#result = loaded_model.score(X_test, y_test)
+f = open(filename, 'rb') 
+svc = pickle.load(f)
+#print(result)
+print('done1')
+#print("pre single prediction")
+#svc.predict(0, .39, 119, 5261)
+#svc = SVC(class_weight='balanced')
+#print dataset
+#y_pred = svc.predict(X_test)
+Efile = "all_prediction.csv"
+namess = ['Severity', 'PhastconAnno', 'GnomadHom', 'GnomadAC']
+# labels for each column
+dataset2 = pandas.read_csv(Efile, names=namess)
+Xnew = dataset2.iloc[:, :]
+print ('done2')
+#SVC.fit(Xnew, y)
+#print(Xnew)
+ynew = svc.predict(Xnew)
+for i in range(len(Xnew)):
+#    print("X=%s, Predicted=%s" % (Xnew[i], ynew[i]))
+    print("Predicted=%s" % (ynew[i]))
+
+f.close()
